@@ -31,15 +31,22 @@
                 @foreach($applications as $index => $application)
                 @php
                     // Define status variables globally for use in conditions
-                    $docStatus = $application->document_status ?? $application->status ?? 'pending';
-                    $intStatus = $application->interview_status ?? $application->status ?? 'not_scheduled';
+                    $docStatus = $application->document_status ?? 'pending';
 
-                    // Mapping status final yang konsisten
+                    // Interview status - check multiple possible field names untuk status interview
+                    $intStatus = $application->interview_status ??
+                                 $application->status ??
+                                 $application->wawancara_status ??
+                                 $application->status_wawancara ??
+                                 'not_scheduled';
+
+                    // Final status - HANYA tampilkan jika benar-benar ada status final, jangan fallback
                     $hasSelectionResult = isset($application->selection_result) && $application->selection_result;
                     if ($hasSelectionResult) {
                         $finalStatus = $application->selection_result['status'] ?? 'pending';
                     } else {
-                        $finalStatus = $application->final_status ?? $application->status ?? 'pending';
+                        // PERBAIKAN: Jangan gunakan fallback, hanya tampilkan null jika memang belum ada
+                        $finalStatus = null; // Jangan pakai $application->final_status sebagai fallback
                     }
                 @endphp
                 <tr>
@@ -94,7 +101,7 @@
                         <td>
                             @if($intStatus === 'not_scheduled' || $intStatus === 'belum_dijadwal')
                                 <span class="badge bg-secondary">📅 Belum Dijadwal</span>
-                            @elseif($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'pending')
+                            @elseif($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending')
                                 <span class="badge bg-info">⏰ Terjadwal</span>
                                 {{-- Tampilkan detail hanya jika masih dijadwal/pending --}}
                                 @if(isset($application->interview_date) && $application->interview_date)
@@ -103,11 +110,11 @@
                                 @if(isset($application->interview_location) && $application->interview_location)
                                     <br><small class="text-muted">📍 {{ Str::limit($application->interview_location, 25) }}</small>
                                 @endif
-                            @elseif($intStatus === 'lulus' || $intStatus === 'passed')
+                            @elseif($intStatus === 'lulus' || $intStatus === 'passed' || $intStatus === 'diterima')
                                 <span class="badge bg-success">✅ Lulus</span>
                                 {{-- Jika sudah lulus, hanya tampilkan pesan sukses singkat --}}
                                 <br><small class="text-success"><i class="fas fa-check-circle"></i> Interview berhasil</small>
-                            @elseif($intStatus === 'tidak_lulus' || $intStatus === 'ditolak' || $intStatus === 'failed')
+                            @elseif($intStatus === 'tidak_lulus' || $intStatus === 'tidak lulus' || $intStatus === 'ditolak' || $intStatus === 'failed')
                                 <span class="badge bg-danger">❌ Tidak Lulus</span>
                             @else
                                 <span class="badge bg-light text-dark">📋 Belum Ada Data</span>
@@ -116,19 +123,19 @@
 
                         {{-- Status Final --}}
                         <td>
-                            @if($finalStatus === 'pending' || $finalStatus === 'menunggu')
+                            @if($finalStatus && ($finalStatus === 'pending' || $finalStatus === 'menunggu'))
                                 <span class="badge bg-warning">⏳ Menunggu</span>
-                            @elseif($finalStatus === 'accepted' || $finalStatus === 'diterima')
+                            @elseif($finalStatus && ($finalStatus === 'accepted' || $finalStatus === 'diterima'))
                                 <span class="badge bg-success">✅ Diterima</span>
                                 @if(isset($application->start_date) && $application->start_date)
                                     <br><small class="text-muted">🕒 Mulai: {{ \Carbon\Carbon::parse($application->start_date)->format('d M Y') }}</small>
                                 @endif
-                            @elseif($finalStatus === 'rejected' || $finalStatus === 'ditolak')
+                            @elseif($finalStatus && ($finalStatus === 'rejected' || $finalStatus === 'ditolak'))
                                 <span class="badge bg-danger">❌ Ditolak</span>
-                            @elseif($finalStatus === 'waiting_list')
+                            @elseif($finalStatus && $finalStatus === 'waiting_list')
                                 <span class="badge bg-info">📋 Waiting List</span>
                             @else
-                                <span class="badge bg-light text-dark">📋 Belum Ada Data</span>
+                                <span class="badge bg-light text-dark">📋 Belum Diproses</span>
                             @endif
                         </td>
 
@@ -166,7 +173,7 @@
                         <td>
                             @if($intStatus === 'not_scheduled' || $intStatus === 'belum_dijadwal')
                                 <span class="badge bg-secondary">📅 Belum Dijadwal</span>
-                            @elseif($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'pending')
+                            @elseif($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending')
                                 <span class="badge bg-info">⏰ Terjadwal</span>
                                 {{-- Tampilkan detail hanya jika masih dijadwal/pending --}}
                                 @if(isset($application->interview_date) && $application->interview_date)
@@ -193,19 +200,19 @@
                     @elseif($stage === 'final')
                         {{-- Tab Hasil Seleksi: Hanya tampilkan status final --}}
                         <td>
-                            @if($finalStatus === 'pending' || $finalStatus === 'menunggu')
+                            @if($finalStatus && ($finalStatus === 'pending' || $finalStatus === 'menunggu'))
                                 <span class="badge bg-warning">⏳ Menunggu</span>
-                            @elseif($finalStatus === 'accepted' || $finalStatus === 'diterima')
+                            @elseif($finalStatus && ($finalStatus === 'accepted' || $finalStatus === 'diterima'))
                                 <span class="badge bg-success">✅ Diterima</span>
                                 @if(isset($application->start_date) && $application->start_date)
                                     <br><small class="text-muted">🕒 Mulai: {{ \Carbon\Carbon::parse($application->start_date)->format('d M Y') }}</small>
                                 @endif
-                            @elseif($finalStatus === 'rejected' || $finalStatus === 'ditolak')
+                            @elseif($finalStatus && ($finalStatus === 'rejected' || $finalStatus === 'ditolak'))
                                 <span class="badge bg-danger">❌ Ditolak</span>
-                            @elseif($finalStatus === 'waiting_list')
+                            @elseif($finalStatus && $finalStatus === 'waiting_list')
                                 <span class="badge bg-info">📋 Waiting List</span>
                             @else
-                                <span class="badge bg-light text-dark">📋 Belum Ada Data</span>
+                                <span class="badge bg-light text-dark">📋 Belum Diproses</span>
                             @endif
 
                             {{-- Tampilkan informasi sumber data dan catatan --}}
@@ -296,7 +303,7 @@
                                 </button>
                             @endif
 
-                            @if(($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'pending') &&
+                            @if(($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending') &&
                                 (!isset($stage) || $stage === 'interview' || isset($showAll)))
                                 <button type="button" class="btn btn-sm btn-outline-success btn-interview-result mb-1"
                                         data-bs-toggle="modal" data-bs-target="#interviewResultModal"
@@ -321,7 +328,7 @@
 
                             <!-- Final Decision Actions - Hanya tampil di tab final atau showAll -->
                             @if(($intStatus === 'lulus' || $intStatus === 'passed') &&
-                                ($finalStatus === 'pending' || $finalStatus === 'menunggu') &&
+                                (!$finalStatus || $finalStatus === 'pending' || $finalStatus === 'menunggu') &&
                                 (!isset($stage) || $stage === 'final' || isset($showAll)))
                                 <button type="button" class="btn btn-sm btn-outline-warning btn-final-decision mb-1"
                                         data-bs-toggle="modal" data-bs-target="#finalModal"
@@ -334,7 +341,7 @@
 
                             <!-- Tombol untuk membuat hasil seleksi jika status sudah diterima tapi belum ada di API -->
                             @if((!isset($application->selection_result) || !$application->selection_result) &&
-                                ($finalStatus === 'diterima' || $finalStatus === 'accepted') &&
+                                $finalStatus && ($finalStatus === 'diterima' || $finalStatus === 'accepted') &&
                                 (!isset($stage) || $stage === 'final' || isset($showAll)))
                                 <button type="button" class="btn btn-sm btn-outline-success btn-create-selection-result mb-1"
                                         data-bs-toggle="modal" data-bs-target="#finalModal"

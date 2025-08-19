@@ -55,7 +55,10 @@
                                         </div>
                                         <div class="col-3">
                                             <div class="p-2">
-                                                <div class="text-info h4 mb-1">{{ $interviewApplications->whereIn('status', ['pending', 'scheduled', 'tidak_lulus'])->count() }}</div>
+                                                <div class="text-info h4 mb-1">{{ $interviewApplications->filter(function($app) {
+                                    $status = $app->interview_status ?? $app->status ?? $app->wawancara_status ?? $app->status_wawancara ?? 'not_scheduled';
+                                    return in_array($status, ['pending', 'scheduled', 'terjadwal', 'dijadwalkan', 'belum_dijadwal', 'not_scheduled', 'tidak_lulus', 'tidak lulus', 'ditolak', 'failed']);
+                                })->count() }}</div>
                                                 <small class="text-muted">Wawancara</small>
                                             </div>
                                         </div>
@@ -86,7 +89,10 @@
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="interview-tab" data-bs-toggle="tab" data-bs-target="#interview" type="button" role="tab">
-                                    Wawancara <span class="badge bg-info ms-1">{{ $interviewApplications->whereIn('status', ['pending', 'scheduled', 'tidak_lulus'])->count() }}</span>
+                                    Wawancara <span class="badge bg-info ms-1">{{ $interviewApplications->filter(function($app) {
+                                        $status = $app->interview_status ?? $app->status ?? $app->wawancara_status ?? $app->status_wawancara ?? 'not_scheduled';
+                                        return in_array($status, ['pending', 'scheduled', 'terjadwal', 'dijadwalkan', 'belum_dijadwal', 'not_scheduled', 'tidak_lulus', 'tidak lulus', 'ditolak', 'failed']);
+                                    })->count() }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -124,8 +130,27 @@
                             {{-- Tab Wawancara: Data dari API Wawancara dengan filter id_lowongan_pekerjaan, exclude yang sudah lulus --}}
                             <div class="tab-pane fade" id="interview" role="tabpanel">
                                 @php
-                                    // Filter hanya menampilkan wawancara yang belum lulus (status: pending, scheduled, atau tidak_lulus)
-                                    $filteredInterviewApplications = $interviewApplications->whereIn('status', ['pending', 'scheduled', 'tidak_lulus']);
+                                    // Filter hanya menampilkan wawancara yang belum lulus (termasuk semua status kecuali lulus/diterima)
+                                    $filteredInterviewApplications = $interviewApplications->filter(function($application) {
+                                        $status = $application->interview_status ??
+                                                 $application->status ??
+                                                 $application->wawancara_status ??
+                                                 $application->status_wawancara ??
+                                                 'not_scheduled';
+
+                                        return in_array($status, [
+                                            'pending',
+                                            'scheduled',
+                                            'terjadwal',
+                                            'dijadwalkan',
+                                            'belum_dijadwal',
+                                            'not_scheduled',
+                                            'tidak_lulus',
+                                            'tidak lulus',
+                                            'ditolak',
+                                            'failed'
+                                        ]);
+                                    });
                                 @endphp
 
                                 @if($interviewApplications->where('status', 'lulus')->count() > 0)
