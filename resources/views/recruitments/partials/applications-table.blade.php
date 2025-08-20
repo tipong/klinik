@@ -40,12 +40,12 @@
                                  $application->status_wawancara ??
                                  'not_scheduled';
 
-                    // Final status - PERBAIKAN: Cek semua kemungkinan field untuk status final dari API
+                    // Final status - PERBAIKAN: Hanya tampilkan status final jika benar-benar ada data hasil seleksi
                     $finalStatus = null;
                     $hasSelectionResult = false;
 
-                    // Prioritas pengecekan status final dari berbagai kemungkinan field API:
-                    // 1. Dari nested object selection_result
+                    // Prioritas pengecekan status final HANYA dari field hasil seleksi yang valid:
+                    // 1. Dari nested object selection_result (data API hasil seleksi)
                     if (isset($application->selection_result) && $application->selection_result) {
                         $hasSelectionResult = true;
                         if (is_array($application->selection_result)) {
@@ -54,12 +54,13 @@
                             $finalStatus = $application->selection_result->status ?? null;
                         }
                     }
-                    // 2. Dari field final_status langsung
-                    elseif (isset($application->final_status) && !empty($application->final_status)) {
+                    // 2. Dari field final_status HANYA jika ada indikasi data hasil seleksi
+                    elseif (isset($application->final_status) && !empty($application->final_status) &&
+                            (isset($application->hasil_seleksi_id) || isset($application->selection_result_id))) {
                         $finalStatus = $application->final_status;
                         $hasSelectionResult = true;
                     }
-                    // 3. Dari field hasil_status atau status_hasil_seleksi
+                    // 3. Dari field hasil_status atau status_hasil_seleksi (data API hasil seleksi)
                     elseif (isset($application->hasil_status) && !empty($application->hasil_status)) {
                         $finalStatus = $application->hasil_status;
                         $hasSelectionResult = true;
@@ -68,8 +69,9 @@
                         $finalStatus = $application->status_hasil_seleksi;
                         $hasSelectionResult = true;
                     }
-                    // 4. Dari field status_final atau hasil_seleksi_status
-                    elseif (isset($application->status_final) && !empty($application->status_final)) {
+                    // 4. Dari field status_final atau hasil_seleksi_status (data API hasil seleksi)
+                    elseif (isset($application->status_final) && !empty($application->status_final) &&
+                            isset($application->hasil_seleksi_created_at)) {
                         $finalStatus = $application->status_final;
                         $hasSelectionResult = true;
                     }
@@ -77,11 +79,9 @@
                         $finalStatus = $application->hasil_seleksi_status;
                         $hasSelectionResult = true;
                     }
-                    // 5. Fallback: Cek field status jika mengandung nilai final (diterima/ditolak)
-                    elseif (isset($application->status) && in_array(strtolower($application->status), ['diterima', 'ditolak', 'accepted', 'rejected', 'pending_final', 'waiting_list'])) {
-                        $finalStatus = $application->status;
-                        $hasSelectionResult = true;
-                    }
+
+                    // TIDAK ada fallback ke field status umum - hindari false positive
+                    // Field status umum dari lamaran TIDAK dianggap sebagai status final
 
                     // Debug information (uncomment untuk troubleshooting)
                     // if ($application->id === 'TARGET_ID') { // Ganti dengan ID yang bermasalah
@@ -141,8 +141,13 @@
 
                         {{-- Status Interview --}}
                         <td>
-                            @if($intStatus === 'not_scheduled' || $intStatus === 'belum_dijadwal')
-                                <span class="badge bg-secondary">📅 Belum Dijadwal</span>
+                            @if($docStatus !== 'accepted' && $docStatus !== 'diterima')
+                                {{-- Jika dokumen belum diterima, interview belum bisa dijadwal --}}
+                                <span class="badge bg-secondary">📄 Menunggu Review Dokumen</span>
+                                <br><small class="text-muted">Interview dapat dijadwalkan setelah dokumen diterima</small>
+                            @elseif($intStatus === 'not_scheduled' || $intStatus === 'belum_dijadwal')
+                                <span class="badge bg-warning">📅 Belum Dijadwal</span>
+                                <br><small class="text-muted">Dokumen telah diterima, siap untuk dijadwal interview</small>
                             @elseif($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending')
                                 <span class="badge bg-info">⏰ Terjadwal</span>
                                 {{-- Tampilkan detail hanya jika masih dijadwal/pending --}}
@@ -217,8 +222,13 @@
                     @elseif($stage === 'interview')
                         {{-- Tab Interview: Hanya tampilkan status interview --}}
                         <td>
-                            @if($intStatus === 'not_scheduled' || $intStatus === 'belum_dijadwal')
-                                <span class="badge bg-secondary">📅 Belum Dijadwal</span>
+                            @if($docStatus !== 'accepted' && $docStatus !== 'diterima')
+                                {{-- Jika dokumen belum diterima, interview belum bisa dijadwal --}}
+                                <span class="badge bg-secondary">📄 Menunggu Review Dokumen</span>
+                                <br><small class="text-muted">Interview dapat dijadwalkan setelah dokumen diterima</small>
+                            @elseif($intStatus === 'not_scheduled' || $intStatus === 'belum_dijadwal')
+                                <span class="badge bg-warning">📅 Belum Dijadwal</span>
+                                <br><small class="text-muted">Dokumen telah diterima, siap untuk dijadwal interview</small>
                             @elseif($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending')
                                 <span class="badge bg-info">⏰ Terjadwal</span>
                                 {{-- Tampilkan detail hanya jika masih dijadwal/pending --}}
@@ -277,14 +287,12 @@
                                         {{ \Carbon\Carbon::parse($application->selection_result['updated_at'])->format('d M Y H:i') }}
                                     </small>
                                 @endif
-                            @else
-                                {{-- Data dari lamaran, belum ada hasil seleksi --}}
-                                @if(strtolower($finalStatus) === 'diterima' || strtolower($finalStatus) === 'accepted')
-                                    <br><small class="text-warning">
-                                        <i class="fas fa-exclamation-triangle"></i>
-                                        Hasil belum dicatat di sistem seleksi
-                                    </small>
-                                @endif
+                            @elseif($finalStatus)
+                                {{-- Ada final status tapi tidak ada hasil seleksi yang valid --}}
+                                <br><small class="text-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                    Status tidak konsisten - hasil belum dicatat di sistem seleksi
+                                </small>
                                 @if(isset($application->final_notes) && $application->final_notes)
                                     <br><small class="text-info">💬 {{ Str::limit($application->final_notes, 40) }}</small>
                                 @endif
@@ -353,7 +361,8 @@
                                 </button>
                             @endif
 
-                            @if(($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending') &&
+                            @if(($docStatus === 'accepted' || $docStatus === 'diterima') &&
+                                ($intStatus === 'scheduled' || $intStatus === 'terjadwal' || $intStatus === 'dijadwalkan' || $intStatus === 'pending') &&
                                 (!isset($stage) || $stage === 'interview' || isset($showAll)))
                                 <button type="button" class="btn btn-sm btn-outline-success btn-interview-result mb-1"
                                         data-bs-toggle="modal" data-bs-target="#interviewResultModal"
@@ -389,19 +398,18 @@
                                 </button>
                             @endif
 
-                            <!-- Tombol untuk membuat hasil seleksi jika status sudah diterima tapi belum ada di API -->
-                            @if((!isset($application->selection_result) || !$application->selection_result) &&
-                                $finalStatus && ($finalStatus === 'diterima' || $finalStatus === 'accepted') &&
+                            <!-- Tombol untuk membuat hasil seleksi hanya jika ada data inconsistent yang perlu diperbaiki -->
+                            @if($finalStatus && !$hasSelectionResult &&
+                                ($finalStatus === 'diterima' || $finalStatus === 'accepted' || $finalStatus === 'ditolak' || $finalStatus === 'rejected') &&
                                 (!isset($stage) || $stage === 'final' || isset($showAll)))
-                                <button type="button" class="btn btn-sm btn-outline-success btn-create-selection-result mb-1"
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-create-selection-result mb-1"
                                         data-bs-toggle="modal" data-bs-target="#finalModal"
                                         data-application-id="{{ $application->id }}"
                                         data-application-name="{{ $application->name }}"
                                         data-user-id="{{ $application->user_id ?? '' }}"
-                                        data-current-status="diterima"
-                                        data-is-create="true"
-                                        title="Buat catatan hasil seleksi">
-                                    <i class="fas fa-plus"></i> Catat Hasil Seleksi
+                                        data-current-status="{{ $finalStatus }}"
+                                        title="Data tidak konsisten - catat ulang hasil seleksi">
+                                    <i class="fas fa-exclamation-triangle"></i> Perbaiki Data
                                 </button>
                             @endif
 
