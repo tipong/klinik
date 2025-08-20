@@ -4,24 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    
+
     <title>{{ config('app.name', 'Klinik App') }} - @yield('title', 'Dashboard')</title>
-    
+
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    
+
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
-    
+
     @stack('styles')
-    
+
     <style>
         .sidebar {
             min-height: 100vh;
@@ -68,7 +68,7 @@
                                 Klinik App
                             </h4>
                         </div>
-                        
+
                         @if(is_authenticated())
                         <div class="text-center mb-3">
                             <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
@@ -83,16 +83,16 @@
                             </div>
                         </div>
                         @endif
-                        
+
                         <ul class="nav flex-column">
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                                     <i class="bi bi-speedometer2"></i> Dashboard
                                 </a>
                             </li>
-                            
+
                             @if(is_authenticated())
-                                
+
                                 {{-- Attendance - Admin, HRD, Front Office, Kasir, Dokter, Beautician --}}
                                 @if(!is_pelanggan())
                                 <li class="nav-item">
@@ -101,7 +101,7 @@
                                     </a>
                                 </li>
                                 @endif
-                                
+
                                 {{-- Recruitment - Admin, HRD, Pelanggan --}}
                                 @if(is_admin() || is_hrd())
                                 <li class="nav-item">
@@ -124,7 +124,7 @@
                                     </ul>
                                 </li>
                                 @endif
-                                
+
                                 {{-- Training - Admin, HRD, Front Office, Kasir, Dokter, Beautician --}}
                                 @if(!is_pelanggan())
                                 <li class="nav-item">
@@ -133,7 +133,7 @@
                                     </a>
                                 </li>
                                 @endif
-                                
+
                                 {{-- Payroll Management - Admin, HRD, Front Office, Kasir, Dokter, Beautician --}}
                                 @if(!is_pelanggan())
                                 <li class="nav-item">
@@ -142,7 +142,7 @@
                                     </a>
                                 </li>
                                 @endif
-                                
+
                                 {{-- Employee Management - Admin, HRD only --}}
                                 @if(is_admin() || is_hrd())
                                 <li class="nav-item">
@@ -151,7 +151,7 @@
                                     </a>
                                 </li>
                                 @endif
-                                
+
                                 {{-- User Management - Admin, HRD only --}}
                                 @if(is_admin())
                                 <li class="nav-item">
@@ -162,7 +162,7 @@
                                 @endif
                             @endif
                         </ul>
-                        
+
                         @if(is_authenticated())
                         <hr class="text-white-50">
                         <ul class="nav flex-column">
@@ -173,14 +173,14 @@
                                 </a>
                             </li>
                         </ul>
-                        
+
                         <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                             @csrf
                         </form>
                         @endif
                     </div>
                 </nav>
-                
+
                 <!-- Main content -->
                 <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -189,33 +189,33 @@
                             @yield('page-actions')
                         </div>
                     </div>
-                    
+
                     @if(session('success'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                             {{ session('success') }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
-                    
+
                     @if(session('error'))
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             {{ session('error') }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
-                    
+
                     @yield('content')
                 </main>
             </div>
         </div>
     </div>
-    
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+
     <!-- Global Session Management -->
     <script>
         // Global session and CSRF management
@@ -235,7 +235,7 @@
                     });
                 }
             });
-            
+
             // Check if we're on a form page and add session validation
             const forms = document.querySelectorAll('form[method="POST"], form[method="PUT"], form[method="PATCH"]');
             forms.forEach(form => {
@@ -243,16 +243,16 @@
                 if (form.classList.contains('payment-form') || form.classList.contains('session-validated')) {
                     return;
                 }
-                
+
                 form.addEventListener('submit', function(e) {
                     // Quick session check for critical forms
-                    const isImportantForm = form.action.includes('payment-status') || 
+                    const isImportantForm = form.action.includes('payment-status') ||
                                           form.action.includes('destroy') ||
                                           form.action.includes('update');
-                    
+
                     if (isImportantForm) {
                         e.preventDefault();
-                        
+
                         fetch('/check-session', {
                             method: 'GET',
                             headers: {
@@ -292,7 +292,7 @@
             });
         });
     </script>
-    
+
     @stack('scripts')
     @yield('scripts')
 </body>
