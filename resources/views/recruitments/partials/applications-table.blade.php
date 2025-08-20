@@ -40,14 +40,56 @@
                                  $application->status_wawancara ??
                                  'not_scheduled';
 
-                    // Final status - HANYA tampilkan jika benar-benar ada status final, jangan fallback
-                    $hasSelectionResult = isset($application->selection_result) && $application->selection_result;
-                    if ($hasSelectionResult) {
-                        $finalStatus = $application->selection_result['status'] ?? 'pending';
-                    } else {
-                        // PERBAIKAN: Jangan gunakan fallback, hanya tampilkan null jika memang belum ada
-                        $finalStatus = null; // Jangan pakai $application->final_status sebagai fallback
+                    // Final status - PERBAIKAN: Cek semua kemungkinan field untuk status final dari API
+                    $finalStatus = null;
+                    $hasSelectionResult = false;
+
+                    // Prioritas pengecekan status final dari berbagai kemungkinan field API:
+                    // 1. Dari nested object selection_result
+                    if (isset($application->selection_result) && $application->selection_result) {
+                        $hasSelectionResult = true;
+                        if (is_array($application->selection_result)) {
+                            $finalStatus = $application->selection_result['status'] ?? null;
+                        } elseif (is_object($application->selection_result)) {
+                            $finalStatus = $application->selection_result->status ?? null;
+                        }
                     }
+                    // 2. Dari field final_status langsung
+                    elseif (isset($application->final_status) && !empty($application->final_status)) {
+                        $finalStatus = $application->final_status;
+                        $hasSelectionResult = true;
+                    }
+                    // 3. Dari field hasil_status atau status_hasil_seleksi
+                    elseif (isset($application->hasil_status) && !empty($application->hasil_status)) {
+                        $finalStatus = $application->hasil_status;
+                        $hasSelectionResult = true;
+                    }
+                    elseif (isset($application->status_hasil_seleksi) && !empty($application->status_hasil_seleksi)) {
+                        $finalStatus = $application->status_hasil_seleksi;
+                        $hasSelectionResult = true;
+                    }
+                    // 4. Dari field status_final atau hasil_seleksi_status
+                    elseif (isset($application->status_final) && !empty($application->status_final)) {
+                        $finalStatus = $application->status_final;
+                        $hasSelectionResult = true;
+                    }
+                    elseif (isset($application->hasil_seleksi_status) && !empty($application->hasil_seleksi_status)) {
+                        $finalStatus = $application->hasil_seleksi_status;
+                        $hasSelectionResult = true;
+                    }
+                    // 5. Fallback: Cek field status jika mengandung nilai final (diterima/ditolak)
+                    elseif (isset($application->status) && in_array(strtolower($application->status), ['diterima', 'ditolak', 'accepted', 'rejected', 'pending_final', 'waiting_list'])) {
+                        $finalStatus = $application->status;
+                        $hasSelectionResult = true;
+                    }
+
+                    // Debug information (uncomment untuk troubleshooting)
+                    // if ($application->id === 'TARGET_ID') { // Ganti dengan ID yang bermasalah
+                    //     echo "<!-- DEBUG: Application ID: " . ($application->id ?? 'N/A') . " -->";
+                    //     echo "<!-- Final Status: " . ($finalStatus ?? 'NULL') . " -->";
+                    //     echo "<!-- Has Selection Result: " . ($hasSelectionResult ? 'true' : 'false') . " -->";
+                    //     echo "<!-- Available Fields: " . json_encode(array_keys((array)$application)) . " -->";
+                    // }
                 @endphp
                 <tr>
                     <td>{{ $loop->iteration }}</td>
@@ -123,17 +165,21 @@
 
                         {{-- Status Final --}}
                         <td>
-                            @if($finalStatus && ($finalStatus === 'pending' || $finalStatus === 'menunggu'))
+                            @if($finalStatus && (strtolower($finalStatus) === 'pending' || strtolower($finalStatus) === 'menunggu'))
                                 <span class="badge bg-warning">⏳ Menunggu</span>
-                            @elseif($finalStatus && ($finalStatus === 'accepted' || $finalStatus === 'diterima'))
+                            @elseif($finalStatus && (strtolower($finalStatus) === 'accepted' || strtolower($finalStatus) === 'diterima'))
                                 <span class="badge bg-success">✅ Diterima</span>
                                 @if(isset($application->start_date) && $application->start_date)
                                     <br><small class="text-muted">🕒 Mulai: {{ \Carbon\Carbon::parse($application->start_date)->format('d M Y') }}</small>
                                 @endif
-                            @elseif($finalStatus && ($finalStatus === 'rejected' || $finalStatus === 'ditolak'))
+                            @elseif($finalStatus && (strtolower($finalStatus) === 'rejected' || strtolower($finalStatus) === 'ditolak'))
                                 <span class="badge bg-danger">❌ Ditolak</span>
-                            @elseif($finalStatus && $finalStatus === 'waiting_list')
+                            @elseif($finalStatus && (strtolower($finalStatus) === 'waiting_list' || strtolower($finalStatus) === 'pending_final'))
                                 <span class="badge bg-info">📋 Waiting List</span>
+                            @elseif($finalStatus)
+                                {{-- Jika ada status final tapi belum dikenali, tampilkan status aslinya --}}
+                                <span class="badge bg-warning">⚠️ {{ ucfirst($finalStatus) }}</span>
+                                <br><small class="text-muted">Status: {{ $finalStatus }}</small>
                             @else
                                 <span class="badge bg-light text-dark">📋 Belum Diproses</span>
                             @endif
@@ -200,17 +246,21 @@
                     @elseif($stage === 'final')
                         {{-- Tab Hasil Seleksi: Hanya tampilkan status final --}}
                         <td>
-                            @if($finalStatus && ($finalStatus === 'pending' || $finalStatus === 'menunggu'))
+                            @if($finalStatus && (strtolower($finalStatus) === 'pending' || strtolower($finalStatus) === 'menunggu'))
                                 <span class="badge bg-warning">⏳ Menunggu</span>
-                            @elseif($finalStatus && ($finalStatus === 'accepted' || $finalStatus === 'diterima'))
+                            @elseif($finalStatus && (strtolower($finalStatus) === 'accepted' || strtolower($finalStatus) === 'diterima'))
                                 <span class="badge bg-success">✅ Diterima</span>
                                 @if(isset($application->start_date) && $application->start_date)
                                     <br><small class="text-muted">🕒 Mulai: {{ \Carbon\Carbon::parse($application->start_date)->format('d M Y') }}</small>
                                 @endif
-                            @elseif($finalStatus && ($finalStatus === 'rejected' || $finalStatus === 'ditolak'))
+                            @elseif($finalStatus && (strtolower($finalStatus) === 'rejected' || strtolower($finalStatus) === 'ditolak'))
                                 <span class="badge bg-danger">❌ Ditolak</span>
-                            @elseif($finalStatus && $finalStatus === 'waiting_list')
+                            @elseif($finalStatus && (strtolower($finalStatus) === 'waiting_list' || strtolower($finalStatus) === 'pending_final'))
                                 <span class="badge bg-info">📋 Waiting List</span>
+                            @elseif($finalStatus)
+                                {{-- Jika ada status final tapi belum dikenali, tampilkan status aslinya --}}
+                                <span class="badge bg-warning">⚠️ {{ ucfirst($finalStatus) }}</span>
+                                <br><small class="text-muted">Status: {{ $finalStatus }}</small>
                             @else
                                 <span class="badge bg-light text-dark">📋 Belum Diproses</span>
                             @endif
@@ -229,7 +279,7 @@
                                 @endif
                             @else
                                 {{-- Data dari lamaran, belum ada hasil seleksi --}}
-                                @if($finalStatus === 'diterima' || $finalStatus === 'accepted')
+                                @if(strtolower($finalStatus) === 'diterima' || strtolower($finalStatus) === 'accepted')
                                     <br><small class="text-warning">
                                         <i class="fas fa-exclamation-triangle"></i>
                                         Hasil belum dicatat di sistem seleksi

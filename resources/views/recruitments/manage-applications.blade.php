@@ -257,29 +257,33 @@
                         </select>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i>
-                            Jika diterima, jadwal wawancara akan otomatis dibuat
+                            Jika diterima, gunakan tombol "Jadwal Interview" untuk membuat jadwal wawancara
                         </small>
                     </div>
 
-                    <!-- Interview Schedule Fields - Hidden by default -->
+                    <!-- Interview Schedule Fields - Hidden by default (PREVIEW ONLY - NOT SUBMITTED) -->
                     <div id="interviewScheduleFields" style="display: none;">
                         <hr>
                         <h6 class="text-primary">
-                            <i class="fas fa-calendar"></i> Jadwal Interview
+                            <i class="fas fa-calendar"></i> Preview Jadwal Interview
                         </h6>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <small>Field di bawah ini hanya untuk preview. Jadwal interview akan dibuat menggunakan tombol "Jadwal Interview" setelah dokumen diterima.</small>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">Tanggal Interview</label>
-                            <input type="datetime-local" class="form-control" name="tanggal_wawancara" id="tanggal_wawancara">
-                            <small class="form-text text-muted">Atur jadwal interview untuk pelamar</small>
+                            <input type="datetime-local" class="form-control" id="tanggal_wawancara" readonly>
+                            <small class="form-text text-muted">Preview tanggal interview yang akan dijadwalkan</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Lokasi/Platform Interview</label>
-                            <input type="text" class="form-control" name="lokasi_wawancara" id="lokasi_wawancara" placeholder="Ruang Meeting / Zoom / Google Meet">
-                            <small class="form-text text-muted">Lokasi atau platform untuk interview</small>
+                            <input type="text" class="form-control" id="lokasi_wawancara" placeholder="Ruang Meeting / Zoom / Google Meet" readonly>
+                            <small class="form-text text-muted">Preview lokasi atau platform interview</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Catatan Interview</label>
-                            <textarea class="form-control" name="catatan_wawancara" id="catatan_wawancara" rows="2" placeholder="Instruksi atau catatan untuk pelamar"></textarea>
+                            <textarea class="form-control" id="catatan_wawancara" rows="2" placeholder="Instruksi atau catatan untuk pelamar" readonly></textarea>
                         </div>
                     </div>
 
@@ -569,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handle document status change to show/hide interview fields
+    // Handle document status change to show/hide interview preview fields
     document.getElementById('document_status').addEventListener('change', function() {
         const interviewFields = document.getElementById('interviewScheduleFields');
         const tanggalField = document.getElementById('tanggal_wawancara');
@@ -577,23 +581,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (this.value === 'accepted') {
             interviewFields.style.display = 'block';
-            // Set default datetime to 3 days from now
+            // Set default datetime to 3 days from now (PREVIEW ONLY)
             const defaultDate = new Date();
             defaultDate.setDate(defaultDate.getDate() + 3);
             defaultDate.setHours(10, 0); // Set to 10:00 AM
             tanggalField.value = defaultDate.toISOString().slice(0, 16);
             lokasiField.value = 'Ruang Meeting Klinik (akan dikonfirmasi)';
-
-            // Make fields required when visible
-            tanggalField.required = true;
-            lokasiField.required = true;
         } else {
             interviewFields.style.display = 'none';
-            // Clear and make fields not required when hidden
+            // Clear preview fields when hidden
             tanggalField.value = '';
             lokasiField.value = '';
-            tanggalField.required = false;
-            lokasiField.required = false;
         }
     });
 
